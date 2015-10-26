@@ -27,35 +27,50 @@ class CiscoDevice:
     def __init__(self, ip_addr, port):
         self.ip_address = str(ip_addr)
         self.port = port
-        self.family = "n/a"
-        self.model = "n/a"
-        self.sn = "n/a"
-        self.ios_ver = "n/a"
+        self.status = ""
+        self.family = ""
+        self.model = ""
+        self.sn = ""
+        self.ios_ver = ""
 
     def inventory(self, user, secret):
-        regex_ios_ver = re.compile('(Cisco IOS Software,).*')
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # Accept all unknown keys
-        client.connect(self.ip_address, self.port, user, secret, timeout=1)
-        stdin, stdout, stderr = client.exec_command('show version')
-        data = stdout.read() + stderr.read()
-        data = data.decode()
-        self.ios_ver = regex_ios_ver.match(data).group().strip('\r\n')
+        try:
+            client.connect(self.ip_address, self.port, user, secret, timeout=5)
+            self.status = "Ok"
+        except paramiko.AuthenticationException:
+            self.status = "Authentication failed!"
+            return 1
+
+        self._get_ios_ver(client)
 
         return 0
 
-"""
+    def _get_ios_ver(self, client):
+            regex_ios_ver = re.compile('(Cisco IOS Software,).*')
+            stdin, stdout, stderr = client.exec_command('show version')
+            data = stdout.read() + stderr.read()
+            data = data.decode()
+            self.ios_ver = regex_ios_ver.match(data).group().strip('\r\n')
+
+
 class Reporter:
 
-    def __init__(self):
+    def __init__(self, cisco_devices):
+        self.cisco_devices = cisco_devices
 
-    def screan_rep(self):
+    def screen_rep(self):
+        print("CISCO DEVICES")
+        print("IP Address\t"+"Connect status\t"+"Family\t"+"Model\t"+"Serial\t"+"IOS Version")
         while not cisco_dev_list.empty():
             cisco_dev = cisco_dev_list.get()
-            print("Cisco {ip}: {ios}".format(ip=cisco_dev.ip_address, ios=cisco_dev.ios_ver))
+            print("Cisco {ip}: Connect status - {status}; IOS Version - {ios}".format(ip=cisco_dev.ip_address,
+                                                                                      status=cisco_dev.status,
+                                                                                      ios=cisco_dev.ios_ver))
 
-    def csv_rep(self):
-"""
+    #def csv_rep(self):
+
 
 class Inventor(threading.Thread):
 
@@ -134,9 +149,13 @@ def main():
     for thread in thread_list:
         thread.join()
 
+    print("CISCO DEVICES")
+    print("IP Address\t\t\t"+"Connect status\t\t\t"+"Family\t\t\t"+"Model\t\t\t"+"Serial\t\t\t"+"IOS Version")
     while not cisco_dev_list.empty():
         cisco_dev = cisco_dev_list.get()
-        print("Cisco {ip}: {ios}".format(ip=cisco_dev.ip_address, ios=cisco_dev.ios_ver))
+        print("Cisco {ip}: Connect status - {status}; IOS Version - {ios}".format(ip=cisco_dev.ip_address,
+                                                                                  status=cisco_dev.status,
+                                                                                  ios=cisco_dev.ios_ver))
 
 
 if __name__ == "__main__":
