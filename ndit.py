@@ -40,7 +40,7 @@ class CiscoDevice:
             client.connect(self.ip_address, self.port, user, secret, timeout=5)
             self.status = "Ok"
         except paramiko.AuthenticationException:
-            self.status = "Authentication failed!"
+            self.status = "Auth failed!"
             return 1
 
         self._get_ios_ver(client)
@@ -61,13 +61,17 @@ class Reporter:
         self.cisco_devices = cisco_devices
 
     def screen_rep(self):
-        print("CISCO DEVICES")
-        print("IP Address\t"+"Connect status\t"+"Family\t"+"Model\t"+"Serial\t"+"IOS Version")
+
+        template = "{0:20}{1:20}{2:20}{3:20}{4:20}{5:20}"  # column widths
+        print(template.format("IP Address", "Status", "Family", "Model", "Serial", "IOS Version"))  # header
         while not cisco_dev_list.empty():
             cisco_dev = cisco_dev_list.get()
-            print("Cisco {ip}: Connect status - {status}; IOS Version - {ios}".format(ip=cisco_dev.ip_address,
-                                                                                      status=cisco_dev.status,
-                                                                                      ios=cisco_dev.ios_ver))
+            print(template.format(cisco_dev.ip_address,
+                                  cisco_dev.status,
+                                  cisco_dev.family,
+                                  cisco_dev.model,
+                                  cisco_dev.sn,
+                                  cisco_dev.ios_ver))
 
     #def csv_rep(self):
 
@@ -149,13 +153,9 @@ def main():
     for thread in thread_list:
         thread.join()
 
-    print("CISCO DEVICES")
-    print("IP Address\t\t\t"+"Connect status\t\t\t"+"Family\t\t\t"+"Model\t\t\t"+"Serial\t\t\t"+"IOS Version")
-    while not cisco_dev_list.empty():
-        cisco_dev = cisco_dev_list.get()
-        print("Cisco {ip}: Connect status - {status}; IOS Version - {ios}".format(ip=cisco_dev.ip_address,
-                                                                                  status=cisco_dev.status,
-                                                                                  ios=cisco_dev.ios_ver))
+    # Report results
+    reporter = Reporter(cisco_dev_list)
+    reporter.screen_rep()
 
 
 if __name__ == "__main__":
