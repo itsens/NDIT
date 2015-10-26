@@ -15,7 +15,10 @@ import threading
 import queue
 import paramiko  # дописать проверку импорта
 
+# Constants
 MAX_THREADS = 10
+
+# Global vars
 cisco_dev_list = queue.Queue()
 
 
@@ -41,6 +44,18 @@ class CiscoDevice:
 
         return 0
 
+"""
+class Reporter:
+
+    def __init__(self):
+
+    def screan_rep(self):
+        while not cisco_dev_list.empty():
+            cisco_dev = cisco_dev_list.get()
+            print("Cisco {ip}: {ios}".format(ip=cisco_dev.ip_address, ios=cisco_dev.ios_ver))
+
+    def csv_rep(self):
+"""
 
 class Inventor(threading.Thread):
 
@@ -51,7 +66,8 @@ class Inventor(threading.Thread):
         self.args = args
 
     def run(self):
-        print("Thread %s started", self.thread_num)
+        print("Thread {0} started".format(self.thread_num))
+
         while not self.q.empty():
             ip_addr = self.q.get()
             response = self.port_check(ip_addr, self.args.port)
@@ -62,8 +78,7 @@ class Inventor(threading.Thread):
                     cisco_device.inventory(self.args.user, self.args.secret)
                     cisco_dev_list.put(cisco_device)
 
-        #print("Number of threads", threading.active_count())
-        print("Thread %s stoped", self.thread_num)
+        print("Thread {0} stoped".format(self.thread_num))
 
     def ssh_vendor_check(self, response_sign):
         """
@@ -92,50 +107,41 @@ class Inventor(threading.Thread):
         return response
 
 
-def create_parser():
+def main():
 
+    # Argument parser
     parser = argparse.ArgumentParser(prog="CSPIT 1.0", description="Cisco SSH Python Inventory Tool")
     parser.add_argument("-t", "--target", action="store", required=True, help="IP address|range")
     parser.add_argument("-p", "--port", action="store", default=22, help="SSH port")
     parser.add_argument("-u", "--user", action="store", required=True, help="SSH User")
     parser.add_argument("-s", "--secret", action="store", required=True, help="SSH Password")
-
-    return parser
-
-
-def main(argv):
-    """
-    Main program
-
-    :param argv: sys.argv params
-    :return:
-    """
-    parser = create_parser()
     args = parser.parse_args(sys.argv[1:])
 
+    # Forming a queue of IP-addresses
     q = queue.Queue()
     target = ipaddress.IPv4Network(args.target)
     for ip_addr in target:
         ip_addr = str(ipaddress.IPv4Address(ip_addr))
         q.put(ip_addr)
-    #print(q)
 
+    # Create, start and wait a threads
     thread_list = []
     for x in range(MAX_THREADS):
         thread = Inventor(x+1, q, args)
         thread_list.append(thread)
-
     for thread in thread_list:
         thread.start()
-
     for thread in thread_list:
         thread.join()
 
-    print(cisco_dev_list)
+    while not cisco_dev_list.empty():
+        cisco_dev = cisco_dev_list.get()
+        print("Cisco {ip}: {ios}".format(ip=cisco_dev.ip_address, ios=cisco_dev.ios_ver))
+
 
 if __name__ == "__main__":
     try:
-        main(sys.argv)
+        main()
     except KeyboardInterrupt:
         print("/n")
         print("ERROR: Keyboard Interrupt")
